@@ -12,9 +12,9 @@ const LoginPage = () => {
   const { login, adminLogin } = useAppStore();
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (login(accessKey.trim())) {
+    if (await login(accessKey.trim())) {
       toast.success('Access granted');
       navigate('/portal');
     } else {
@@ -22,9 +22,9 @@ const LoginPage = () => {
     }
   };
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminLogin(adminPass.trim())) {
+    if (await adminLogin(adminPass.trim())) {
       toast.success('Admin access granted');
       navigate('/admin');
     } else {

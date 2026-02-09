@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Shield, Plus, Trash2, Copy, RefreshCw, LogOut, Key, FileText, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useNavigate } from 'react-router-dom';
@@ -6,23 +6,29 @@ import { toast } from 'sonner';
 import logo from '@/assets/logo.png';
 
 const AdminPage = () => {
-  const { isAdmin, accessKeys, searchLogs, logout, addKey, deleteKey, toggleKey } = useAppStore();
+  const { isAdmin, accessKeys, searchLogs, logout, addKey, deleteKey, toggleKey, loadKeys, loadLogs } = useAppStore();
   const navigate = useNavigate();
   const [tab, setTab] = useState<'keys' | 'logs'>('keys');
   const [newName, setNewName] = useState('');
   const [newValue, setNewValue] = useState('');
+
+  useEffect(() => {
+    loadKeys();
+    loadLogs();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!isAdmin) {
     navigate('/');
     return null;
   }
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!newName.trim()) {
       toast.error('Key name is required');
       return;
     }
-    addKey(newName.trim(), newValue.trim() || undefined);
+    await addKey(newName.trim(), newValue.trim() || undefined);
     setNewName('');
     setNewValue('');
     toast.success('Key created');
@@ -173,7 +179,7 @@ const AdminPage = () => {
                           <Copy className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => { deleteKey(k.id); toast.success('Key deleted'); }}
+                          onClick={async () => { await deleteKey(k.id); toast.success('Key deleted'); }}
                           className="p-2 rounded-lg border border-border/40 text-destructive hover:bg-destructive/10 hover:border-destructive/30 transition-all hover-scale bg-card/30 backdrop-blur-sm"
                         >
                           <Trash2 className="w-4 h-4" />
