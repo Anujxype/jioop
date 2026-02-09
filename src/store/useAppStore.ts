@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { api } from '@/lib/api';
 
 export interface AccessKey {
   id: string;
@@ -24,117 +25,124 @@ interface AppState {
   currentKey: AccessKey | null;
   accessKeys: AccessKey[];
   searchLogs: SearchLog[];
-  login: (key: string) => boolean;
-  adminLogin: (password: string) => boolean;
+  login: (key: string) => Promise<boolean>;
+  adminLogin: (password: string) => Promise<boolean>;
   logout: () => void;
-  addKey: (name: string, value?: string) => void;
-  deleteKey: (id: string) => void;
-  toggleKey: (id: string) => void;
-  addLog: (log: Omit<SearchLog, 'id' | 'timestamp'>) => void;
-  incrementKeyUses: (keyId: string) => void;
+  addKey: (name: string, value?: string) => Promise<void>;
+  deleteKey: (id: string) => Promise<void>;
+  toggleKey: (id: string) => Promise<void>;
+  addLog: (log: Omit<SearchLog, 'id' | 'timestamp'>) => Promise<void>;
+  incrementKeyUses: (keyId: string) => Promise<void>;
+  loadKeys: () => Promise<void>;
+  loadLogs: () => Promise<void>;
 }
-
-const generateKey = () => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = 'fx_';
-  for (let i = 0; i < 24; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
-  return result;
-};
-
-const ADMIN_PASSWORD = 'stk7890';
-const DEFAULT_KEY: AccessKey = {
-  id: '1',
-  name: 'Default',
-  key: 'test7890',
-  createdAt: new Date().toLocaleDateString('en-GB'),
-  uses: 0,
-  enabled: true,
-};
-
-const loadState = () => {
-  try {
-    const keys = localStorage.getItem('fastx_keys');
-    const logs = localStorage.getItem('fastx_logs');
-    return {
-      accessKeys: keys ? JSON.parse(keys) : [DEFAULT_KEY],
-      searchLogs: logs ? JSON.parse(logs) : [],
-    };
-  } catch {
-    return { accessKeys: [DEFAULT_KEY], searchLogs: [] };
-  }
-};
-
-const saveKeys = (keys: AccessKey[]) => localStorage.setItem('fastx_keys', JSON.stringify(keys));
-const saveLogs = (logs: SearchLog[]) => localStorage.setItem('fastx_logs', JSON.stringify(logs));
-
-const initial = loadState();
 
 export const useAppStore = create<AppState>((set, get) => ({
   isLoggedIn: false,
   isAdmin: false,
   currentKey: null,
-  accessKeys: initial.accessKeys,
-  searchLogs: initial.searchLogs,
+  accessKeys: [],
+  searchLogs: [],
 
-  login: (key: string) => {
-    const found = get().accessKeys.find(k => k.key === key && k.enabled);
-    if (found) {
-      set({ isLoggedIn: true, currentKey: found });
-      return true;
+  login: async (key: string) => {
+    try {
+      const result = await api.login(key);
+      if (result.success && result.key) {
+        set({ isLoggedIn: true, currentKey: result.key as AccessKey });
+        return true;
+      }
+    } catch {
+      // API unavailable – fall back to local check
+      const found = get().accessKeys.find(k => k.key === key && k.enabled);
+      if (found) {
+        set({ isLoggedIn: true, currentKey: found });
+        return true;
+      }
     }
     return false;
   },
 
-  adminLogin: (password: string) => {
-    if (password === ADMIN_PASSWORD) {
-      set({ isAdmin: true });
-      return true;
+  adminLogin: async (password: string) => {
+    try {
+      const result = await api.adminLogin(password);
+      if (result.success) {
+        set({ isAdmin: true });
+        return true;
+      }
+    } catch {
+      // API unavailable
     }
     return false;
   },
 
   logout: () => set({ isLoggedIn: false, isAdmin: false, currentKey: null }),
 
-  addKey: (name: string, value?: string) => {
-    const newKey: AccessKey = {
-      id: Date.now().toString(),
-      name,
-      key: value || generateKey(),
-      createdAt: new Date().toLocaleDateString('en-GB'),
-      uses: 0,
-      enabled: true,
-    };
-    const keys = [...get().accessKeys, newKey];
-    saveKeys(keys);
-    set({ accessKeys: keys });
+  addKey: async (name: string, value?: string) => {
+    try {
+      const newKey = await api.createKey(name, value || undefined);
+      set({ accessKeys: [...get().accessKeys, newKey as AccessKey] });
+    } catch {
+      // API unavailable
+    }
   },
 
-  deleteKey: (id: string) => {
-    const keys = get().accessKeys.filter(k => k.id !== id);
-    saveKeys(keys);
-    set({ accessKeys: keys });
+  deleteKey: async (id: string) => {
+    try {
+      await api.deleteKey(id);
+      set({ accessKeys: get().accessKeys.filter(k => k.id !== id) });
+    } catch {
+      // API unavailable
+    }
   },
 
-  toggleKey: (id: string) => {
-    const keys = get().accessKeys.map(k => k.id === id ? { ...k, enabled: !k.enabled } : k);
-    saveKeys(keys);
-    set({ accessKeys: keys });
+  toggleKey: async (id: string) => {
+    try {
+      await api.toggleKey(id);
+      const keys = get().accessKeys.map(k =>
+        k.id === id ? { ...k, enabled: !k.enabled } : k
+      );
+      set({ accessKeys: keys });
+    } catch {
+      // API unavailable
+    }
   },
 
-  addLog: (log) => {
-    const newLog: SearchLog = {
-      ...log,
-      id: Date.now().toString(),
-      timestamp: new Date().toISOString(),
-    };
-    const logs = [newLog, ...get().searchLogs].slice(0, 500);
-    saveLogs(logs);
-    set({ searchLogs: logs });
+  addLog: async (log) => {
+    try {
+      const newLog = await api.createLog(log);
+      set({ searchLogs: [newLog as SearchLog, ...get().searchLogs].slice(0, 500) });
+    } catch {
+      // API unavailable
+    }
   },
 
-  incrementKeyUses: (keyId: string) => {
-    const keys = get().accessKeys.map(k => k.id === keyId ? { ...k, uses: k.uses + 1 } : k);
-    saveKeys(keys);
-    set({ accessKeys: keys });
+  incrementKeyUses: async (keyId: string) => {
+    try {
+      await api.incrementKeyUses(keyId);
+      const keys = get().accessKeys.map(k =>
+        k.id === keyId ? { ...k, uses: k.uses + 1 } : k
+      );
+      set({ accessKeys: keys });
+    } catch {
+      // API unavailable
+    }
+  },
+
+  loadKeys: async () => {
+    try {
+      const keys = await api.getKeys();
+      set({ accessKeys: keys as AccessKey[] });
+    } catch {
+      // API unavailable
+    }
+  },
+
+  loadLogs: async () => {
+    try {
+      const logs = await api.getLogs();
+      set({ searchLogs: logs as SearchLog[] });
+    } catch {
+      // API unavailable
+    }
   },
 }));
