@@ -3,6 +3,7 @@ import { Shield, Key, LogIn } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import logo from '@/assets/logo.png';
 
 const LoginPage = () => {
   const [accessKey, setAccessKey] = useState('');
@@ -34,9 +35,7 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <div className="mb-8 flex flex-col items-center">
-        <div className="w-20 h-20 rounded-full border-2 border-primary/50 flex items-center justify-center mb-6 glow-primary animate-pulse-glow">
-          <Shield className="w-10 h-10 text-primary" />
-        </div>
+        <img src={logo} alt="FastX Logo" className="w-20 h-20 mb-6" />
         <h1 className="text-4xl font-bold text-foreground tracking-tight">FastX</h1>
         <p className="text-muted-foreground mt-2">Secure Access Gateway</p>
       </div>
