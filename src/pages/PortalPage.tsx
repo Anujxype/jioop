@@ -3,6 +3,7 @@ import { Search, LogOut, User, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import logo from '@/assets/logo.png';
 
 const API_BASE = 'https://anuapi.netlify.app/.netlify/functions/api';
 
@@ -59,9 +60,7 @@ const PortalPage = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Search className="w-4 h-4 text-primary" />
-          </div>
+          <img src={logo} alt="FastX Logo" className="w-8 h-8" />
           <h1 className="text-xl font-bold">FastX Portal</h1>
         </div>
         <div className="flex items-center gap-4">

@@ -3,6 +3,7 @@ import { Shield, Plus, Trash2, Copy, RefreshCw, LogOut, Key, FileText, ToggleLef
 import { useAppStore } from '@/store/useAppStore';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import logo from '@/assets/logo.png';
 
 const AdminPage = () => {
   const { isAdmin, accessKeys, searchLogs, logout, addKey, deleteKey, toggleKey } = useAppStore();
@@ -42,8 +43,8 @@ const AdminPage = () => {
       {/* Header */}
       <header className="border-b border-border px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Shield className="w-6 h-6 text-accent" />
-          <h1 className="text-xl font-bold">Admin Panel</h1>
+          <img src={logo} alt="FastX Logo" className="w-8 h-8" />
+          <h1 className="text-xl font-bold">FastX Admin Panel</h1>
         </div>
         <button onClick={handleLogout} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm">
           <LogOut className="w-4 h-4" /> Logout
