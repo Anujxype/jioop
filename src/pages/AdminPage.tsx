@@ -15,7 +15,8 @@ const AdminPage = () => {
   useEffect(() => {
     loadKeys();
     loadLogs();
-  }, [loadKeys, loadLogs]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!isAdmin) {
     navigate('/');

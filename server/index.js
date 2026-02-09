@@ -1,10 +1,19 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { MongoClient } from 'mongodb';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', limiter);
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const DB_NAME = process.env.MONGODB_DB || 'fastx';
@@ -75,12 +84,12 @@ app.get('/api/keys', async (_req, res) => {
 
 app.post('/api/keys', async (req, res) => {
   try {
-    const { name, key, id, createdAt } = req.body;
+    const { name, key } = req.body;
     const newKey = {
-      id: id || Date.now().toString(),
+      id: Date.now().toString(),
       name,
       key: key || generateKey(),
-      createdAt: createdAt || new Date().toLocaleDateString('en-GB'),
+      createdAt: new Date().toLocaleDateString('en-GB'),
       uses: 0,
       enabled: true,
     };
