@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Search, LogOut, User, Loader2 } from 'lucide-react';
+import { Search, LogOut, User, Loader2, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import logo from '@/assets/logo.png';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const API_BASE = 'https://anuapi.netlify.app/.netlify/functions/api';
 
@@ -26,10 +27,40 @@ const PortalPage = () => {
     return null;
   }
 
+  // Expiry warning logic
+  const getExpiryWarning = () => {
+    if (!currentKey.expiresAt) return null;
+    const expiresAt = new Date(currentKey.expiresAt);
+    const now = new Date();
+    const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysLeft <= 0) return { text: 'Your access key has expired. Contact admin for renewal.', urgent: true };
+    if (daysLeft <= 7) return { text: `Your access key expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}. Contact admin for renewal.`, urgent: daysLeft <= 3 };
+    return null;
+  };
+
+  const getQuotaWarning = () => {
+    if (!currentKey.maxUses) return null;
+    const remaining = currentKey.maxUses - currentKey.uses;
+    if (remaining <= 0) return { text: 'Usage quota exceeded. Contact admin.', urgent: true };
+    if (remaining <= 10) return { text: `${remaining} API call${remaining === 1 ? '' : 's'} remaining in your quota.`, urgent: remaining <= 3 };
+    return null;
+  };
+
+  const expiryWarning = getExpiryWarning();
+  const quotaWarning = getQuotaWarning();
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) {
       toast.error('Please enter a value');
+      return;
+    }
+    if (expiryWarning?.urgent && expiryWarning.text.includes('expired')) {
+      toast.error('Key expired');
+      return;
+    }
+    if (quotaWarning?.urgent && quotaWarning.text.includes('exceeded')) {
+      toast.error('Quota exceeded');
       return;
     }
     setLoading(true);
@@ -58,7 +89,6 @@ const PortalPage = () => {
 
   return (
     <div className="min-h-screen bg-background bg-grid relative">
-      {/* Ambient glow */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/3 rounded-full blur-3xl pointer-events-none" />
 
       <header className="glass-header px-6 py-4 flex items-center justify-between sticky top-0 z-50 animate-fade-in-down">
@@ -66,17 +96,47 @@ const PortalPage = () => {
           <img src={logo} alt="FastX Logo" className="w-8 h-8 drop-shadow-[0_0_8px_hsl(170_70%_45%/0.3)]" />
           <h1 className="text-xl font-bold text-gradient-primary">FastX Portal</h1>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <span className="text-sm text-primary flex items-center gap-1.5 glass-card px-3 py-1.5 text-xs">
             <User className="w-3 h-3" /> {currentKey.name}
+            {currentKey.scope && (
+              <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] bg-primary/15 border border-primary/20 uppercase">
+                {currentKey.scope}
+              </span>
+            )}
           </span>
+          <ThemeToggle />
           <button onClick={handleLogout} className="flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm transition-colors hover-scale">
             <LogOut className="w-4 h-4" /> Logout
           </button>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto p-6 space-y-6 relative z-10">
+      <div className="max-w-5xl mx-auto p-6 space-y-4 relative z-10">
+        {/* Expiry Warning Banner */}
+        {expiryWarning && (
+          <div className={`flex items-center gap-3 p-4 rounded-lg border animate-fade-in-down ${
+            expiryWarning.urgent
+              ? 'bg-destructive/10 border-destructive/30 text-destructive'
+              : 'bg-warning/10 border-warning/30 text-warning'
+          }`}>
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <p className="text-sm font-medium">{expiryWarning.text}</p>
+          </div>
+        )}
+
+        {/* Quota Warning Banner */}
+        {quotaWarning && (
+          <div className={`flex items-center gap-3 p-4 rounded-lg border animate-fade-in-down ${
+            quotaWarning.urgent
+              ? 'bg-destructive/10 border-destructive/30 text-destructive'
+              : 'bg-warning/10 border-warning/30 text-warning'
+          }`}>
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <p className="text-sm font-medium">{quotaWarning.text}</p>
+          </div>
+        )}
+
         {/* Endpoint Grid */}
         <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <p className="text-sm text-muted-foreground mb-3">Select Endpoint</p>
@@ -90,7 +150,6 @@ const PortalPage = () => {
                     ? 'border-primary/50 bg-primary/10 text-primary glow-primary-sm'
                     : 'border-border/40 bg-card/30 backdrop-blur-sm hover:border-primary/30 hover:bg-card/50'
                 }`}
-                style={{ animationDelay: `${0.1 + i * 0.05}s` }}
               >
                 <p className={`font-semibold text-sm ${selected === i ? 'text-primary' : 'text-foreground'}`}>{ep.name}</p>
                 <p className="text-xs text-muted-foreground font-mono mt-1">{ep.path}</p>

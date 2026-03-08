@@ -8,6 +8,9 @@ export interface AccessKey {
   createdAt: string;
   uses: number;
   enabled: boolean;
+  expiresAt?: string;
+  maxUses?: number;
+  scope?: 'read' | 'admin' | 'user';
 }
 
 export interface SearchLog {
@@ -28,7 +31,7 @@ interface AppState {
   login: (key: string) => Promise<boolean>;
   adminLogin: (password: string) => Promise<boolean>;
   logout: () => void;
-  addKey: (name: string, value?: string) => Promise<void>;
+  addKey: (name: string, value?: string, options?: { expiresAt?: string; maxUses?: number; scope?: string }) => Promise<void>;
   deleteKey: (id: string) => Promise<void>;
   toggleKey: (id: string) => Promise<void>;
   addLog: (log: Omit<SearchLog, 'id' | 'timestamp'>) => Promise<void>;
@@ -52,7 +55,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         return true;
       }
     } catch {
-      // API unavailable – fall back to local check
       const found = get().accessKeys.find(k => k.key === key && k.enabled);
       if (found) {
         set({ isLoggedIn: true, currentKey: found });
@@ -70,7 +72,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         return true;
       }
     } catch {
-      // API unavailable – fall back to local check
       if (password === 'stk7890') {
         set({ isAdmin: true });
         return true;
@@ -81,9 +82,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   logout: () => set({ isLoggedIn: false, isAdmin: false, currentKey: null }),
 
-  addKey: async (name: string, value?: string) => {
+  addKey: async (name: string, value?: string, options?: { expiresAt?: string; maxUses?: number; scope?: string }) => {
     try {
-      const newKey = await api.createKey(name, value || undefined);
+      const newKey = await api.createKey(name, value || undefined, options);
       set({ accessKeys: [...get().accessKeys, newKey as AccessKey] });
     } catch {
       // API unavailable
