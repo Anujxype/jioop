@@ -8,7 +8,7 @@ app.use(cors());
 app.use(express.json());
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
@@ -33,7 +33,6 @@ async function connectDB() {
   db = client.db(DB_NAME);
   console.log(`Connected to MongoDB database: ${DB_NAME}`);
 
-  // Ensure default key exists
   const keysCollection = db.collection('keys');
   const count = await keysCollection.countDocuments();
   if (count === 0) {
@@ -44,6 +43,7 @@ async function connectDB() {
       createdAt: new Date().toLocaleDateString('en-GB'),
       uses: 0,
       enabled: true,
+      scope: 'read',
     });
   }
 }
@@ -54,6 +54,14 @@ app.post('/api/auth/login', async (req, res) => {
     const { key } = req.body;
     const found = await db.collection('keys').findOne({ key, enabled: true });
     if (found) {
+      // Check expiration
+      if (found.expiresAt && new Date(found.expiresAt) < new Date()) {
+        return res.json({ success: false, reason: 'expired' });
+      }
+      // Check usage quota
+      if (found.maxUses && found.uses >= found.maxUses) {
+        return res.json({ success: false, reason: 'quota_exceeded' });
+      }
       res.json({ success: true, key: found });
     } else {
       res.json({ success: false });
@@ -84,7 +92,7 @@ app.get('/api/keys', async (_req, res) => {
 
 app.post('/api/keys', async (req, res) => {
   try {
-    const { name, key } = req.body;
+    const { name, key, expiresAt, maxUses, scope } = req.body;
     const newKey = {
       id: Date.now().toString(),
       name,
@@ -92,6 +100,9 @@ app.post('/api/keys', async (req, res) => {
       createdAt: new Date().toLocaleDateString('en-GB'),
       uses: 0,
       enabled: true,
+      ...(expiresAt && { expiresAt }),
+      ...(maxUses && { maxUses: parseInt(maxUses) }),
+      ...(scope && { scope }),
     };
     await db.collection('keys').insertOne(newKey);
     res.json(newKey);
@@ -125,6 +136,11 @@ app.patch('/api/keys/:id/toggle', async (req, res) => {
 
 app.patch('/api/keys/:id/increment', async (req, res) => {
   try {
+    const key = await db.collection('keys').findOne({ id: req.params.id });
+    // Check quota before incrementing
+    if (key && key.maxUses && key.uses >= key.maxUses) {
+      return res.status(429).json({ error: 'Usage quota exceeded' });
+    }
     await db.collection('keys').updateOne(
       { id: req.params.id },
       { $inc: { uses: 1 } }

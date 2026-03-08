@@ -7,6 +7,9 @@ export interface AccessKeyData {
   createdAt: string;
   uses: number;
   enabled: boolean;
+  expiresAt?: string;
+  maxUses?: number;
+  scope?: 'read' | 'admin' | 'user';
 }
 
 export interface SearchLogData {
@@ -44,10 +47,10 @@ export const api = {
   // Keys
   getKeys: () => request<AccessKeyData[]>('/keys'),
 
-  createKey: (name: string, key?: string) =>
+  createKey: (name: string, key?: string, options?: { expiresAt?: string; maxUses?: number; scope?: string }) =>
     request<AccessKeyData>('/keys', {
       method: 'POST',
-      body: JSON.stringify({ name, key }),
+      body: JSON.stringify({ name, key, ...options }),
     }),
 
   deleteKey: (id: string) =>
